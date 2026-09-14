@@ -110,6 +110,7 @@ def fit_bvh(
     *,
     config: ConversionConfig = ConversionConfig(),
     max_frames: int | None = None,
+    skeleton_map: str = "hiphi",
     mano_fitter: ManoFitter | None = None,
 ) -> MotionResult:
     """Convert one HiPHI BVH to SMPL-X body parameters.
@@ -133,7 +134,7 @@ def fit_bvh(
     beta = beta[:10].copy()
 
     targets, reference, frame_time, source_scale = materialize_bvh_inputs(
-        source, model, beta, max_frames
+        source, model, beta, max_frames, skeleton_map
     )
     rest_joints = load_smplx_rest_joints(model, beta)[:22].astype(np.float32)
     sole = foot_sole_pitch_offsets(beta, model)

@@ -14,6 +14,7 @@ from typing import Any
 
 import numpy as np
 
+from .bvh import SOURCE_SKELETON_MAPS
 from .mano import ManoFitter
 from .pipeline import (
     PIPELINE_VERSION,
@@ -28,6 +29,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--model-path", type=Path, required=True)
+    parser.add_argument(
+        "--skeleton-map", choices=tuple(sorted(SOURCE_SKELETON_MAPS)), default="hiphi"
+    )
     beta = parser.add_mutually_exclusive_group(required=True)
     beta.add_argument("--betas", type=Path, help="One NPY/NPZ beta vector for every clip")
     beta.add_argument(
@@ -308,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
                 "input_root": str(input_root),
                 "output_root": str(output_root),
                 "model_path": str(model_path),
+                "skeleton_map": args.skeleton_map,
                 "mano_fitter": args.mano_fitter,
                 "num_shards": args.num_shards,
                 "shard_index": args.shard_index,
@@ -344,6 +349,7 @@ def main(argv: list[str] | None = None) -> int:
                 beta,
                 config=config,
                 max_frames=args.max_frames,
+                skeleton_map=args.skeleton_map,
                 mano_fitter=mano_fitter,
             )
             save_result(output, result, source_bvh=bvh_path, config=config)

@@ -18,10 +18,29 @@ SMPL22_SOURCE_SEMANTICS = (
     "left_hand", "right_hand",
 )
 
-HIPHI_LONG_SPINE_MAPPING = {
+HIPHI_MAP = {
+    "hips": "Hips",
+    "left_upper_leg": "LeftUpLeg",
+    "right_upper_leg": "RightUpLeg",
     "spine": "Spine",
+    "left_lower_leg": "LeftLeg",
+    "right_lower_leg": "RightLeg",
     "spine2": "Spine2",
+    "left_foot": "LeftFoot",
+    "right_foot": "RightFoot",
     "chest": "Spine4",
+    "left_toe": "LeftToeBase",
+    "right_toe": "RightToeBase",
+    "neck": "Neck",
+    "left_clavicle": "LeftShoulder",
+    "right_clavicle": "RightShoulder",
+    "head": "Head",
+    "left_upper_arm": "LeftArm",
+    "right_upper_arm": "RightArm",
+    "left_lower_arm": "LeftForeArm",
+    "right_lower_arm": "RightForeArm",
+    "left_hand": "LeftHand",
+    "right_hand": "RightHand",
 }
 
 SMPLX_JOINT_NAMES = (
@@ -38,30 +57,20 @@ SMPLX_JOINT_NAMES = (
     for segment in (1, 2, 3)
 )
 
-_ALIASES = {
-    "hips": ("hips", "pelvis", "root"),
-    "spine": ("spine", "spine1"),
-    "spine2": ("spine2", "spine1", "spine"),
-    "chest": ("chest", "spine3", "spine2", "upperchest"),
-    "neck": ("neck", "neck1", "neck2"),
-    "head": ("head",),
-    "left_clavicle": ("leftcollar", "left_clavicle", "left_collar", "leftshoulder"),
-    "right_clavicle": ("rightcollar", "right_clavicle", "right_collar", "rightshoulder"),
-    "left_upper_arm": ("leftarm", "leftshoulder", "left_upper_arm", "left_shoulder"),
-    "right_upper_arm": ("rightarm", "rightshoulder", "right_upper_arm", "right_shoulder"),
-    "left_lower_arm": ("leftforearm", "leftelbow", "left_lower_arm", "left_elbow"),
-    "right_lower_arm": ("rightforearm", "rightelbow", "right_lower_arm", "right_elbow"),
-    "left_hand": ("lefthand", "leftwrist", "left_hand", "left_wrist"),
-    "right_hand": ("righthand", "rightwrist", "right_hand", "right_wrist"),
-    "left_upper_leg": ("leftupleg", "leftleg", "left_hip", "lefthip"),
-    "right_upper_leg": ("rightupleg", "rightleg", "right_hip", "righthip"),
-    "left_lower_leg": ("leftshin", "leftleg", "left_knee", "leftknee"),
-    "right_lower_leg": ("rightshin", "rightleg", "right_knee", "rightknee"),
-    "left_foot": ("leftankle", "left_ankle", "leftfoot", "left_foot"),
-    "right_foot": ("rightankle", "right_ankle", "rightfoot", "right_foot"),
-    "left_toe": ("lefttoeend", "lefttoebase", "lefttoe", "left_foot"),
-    "right_toe": ("righttoeend", "righttoebase", "righttoe", "right_foot"),
-}
+SMPLX_BODY_MAP = dict(zip(
+    SMPL22_SOURCE_SEMANTICS,
+    (
+        "pelvis", "left_hip", "right_hip", "spine1",
+        "left_knee", "right_knee", "spine2", "left_ankle",
+        "right_ankle", "spine3", "left_foot", "right_foot",
+        "neck", "left_collar", "right_collar", "head",
+        "left_shoulder", "right_shoulder", "left_elbow",
+        "right_elbow", "left_wrist", "right_wrist",
+    ),
+))
+
+SOURCE_SKELETON_MAPS = {"hiphi": HIPHI_MAP}
+SKELETON_MAPS = {**SOURCE_SKELETON_MAPS, "smplx": SMPLX_BODY_MAP}
 
 
 @dataclass(frozen=True)
@@ -210,30 +219,24 @@ def load_bvh(path: str | Path, unit_scale: float = 0.01) -> MotionClip:
     )
 
 
-def _normalized(name: str) -> str:
-    return "".join(character for character in name.lower() if character.isalnum())
-
-
-def _infer_mapping(skeleton: Skeleton) -> dict[str, str]:
-    names = {_normalized(name): name for name in skeleton.joint_names}
-    mapping = {}
-    for semantic, aliases in _ALIASES.items():
-        match = next((names.get(_normalized(alias)) for alias in aliases if _normalized(alias) in names), None)
-        if match is not None:
-            mapping[semantic] = match
-    if all(name in skeleton.joint_names for name in HIPHI_LONG_SPINE_MAPPING.values()):
-        mapping.update(HIPHI_LONG_SPINE_MAPPING)
-    short_chest = names.get("spine1")
-    if (
-        "chest" not in mapping
-        and short_chest is not None
-        and mapping.get("spine2") == short_chest
-    ):
-        mapping["chest"] = short_chest
-    missing = sorted(set(SMPL22_SOURCE_SEMANTICS) - set(mapping))
+def map_skeleton(skeleton: Skeleton, map_name: str = "hiphi") -> dict[str, str]:
+    """Resolve one named skeleton map using exact BVH joint names."""
+    try:
+        expected = SKELETON_MAPS[map_name]
+    except KeyError as exc:
+        available = ", ".join(sorted(SKELETON_MAPS))
+        raise ValueError(f"unknown skeleton map {map_name!r}; choose one of: {available}") from exc
+    names = set(skeleton.joint_names)
+    missing = sorted(
+        semantic for semantic in SMPL22_SOURCE_SEMANTICS
+        if expected[semantic] not in names
+    )
     if missing:
-        raise ValueError(f"BVH characterization misses joints: {missing}")
-    return mapping
+        missing_names = [f"{semantic}={expected[semantic]}" for semantic in missing]
+        raise ValueError(f"skeleton map {map_name!r} misses joints: {missing_names}")
+    if len(set(expected.values())) != len(expected):
+        raise ValueError(f"skeleton map {map_name!r} contains duplicate joint names")
+    return dict(expected)
 
 
 def _load_smplx_skeleton(model_path: str | Path, betas: np.ndarray) -> Skeleton:
@@ -259,7 +262,7 @@ def _load_smplx_skeleton(model_path: str | Path, betas: np.ndarray) -> Skeleton:
 def _rotation_copy(source: MotionClip, source_mapping: dict[str, str], target: Skeleton) -> np.ndarray:
     _, source_global = source.world_transforms()
     source_indices = {name: index for index, name in enumerate(source.skeleton.joint_names)}
-    target_mapping = _infer_mapping(target)
+    target_mapping = map_skeleton(target, "smplx")
     target_semantics = {joint: semantic for semantic, joint in target_mapping.items()}
     target_global = np.empty((source.num_frames, target.num_joints, 3, 3), dtype=np.float32)
     identity = np.eye(3, dtype=np.float32)
@@ -309,12 +312,13 @@ def materialize_bvh_inputs(
     model_path: str | Path,
     betas: np.ndarray,
     max_frames: int | None = None,
+    skeleton_map: str = "hiphi",
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     """Return no-scale joint targets and rotation-copy initialization for Mink."""
     source = load_bvh(bvh_path, unit_scale=0.01)
     if max_frames is not None:
         source = source.sliced(min(source.num_frames, max_frames))
-    source_mapping = _infer_mapping(source.skeleton)
+    source_mapping = map_skeleton(source.skeleton, skeleton_map)
     target = _load_smplx_skeleton(model_path, betas)
     source_positions, _ = source.world_transforms()
     source_indices = {name: index for index, name in enumerate(source.skeleton.joint_names)}

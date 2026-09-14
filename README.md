@@ -79,6 +79,14 @@ translation, betas, frame timing, fitted body joints, residuals, and solver
 provenance. `metadata.json`, `object_tracks`, and `object_meshes` are
 copied when present; pass `--no-copy-assets` to disable this.
 
+## Skeleton maps
+
+HiPHI input uses the strict `hiphi` map, which matches the fixed HiPHI names
+such as `Hips`, `Spine4`, `LeftUpLeg`, and `LeftToeBase`. Source map registry lives
+in `hiphi2smplx.bvh.SOURCE_SKELETON_MAPS`. Select it explicitly with
+`--skeleton-map hiphi`. A future BVH skeleton should add a new named map to the
+registry rather than adding aliases. Missing mapped joints fail immediately.
+
 ## Python API
 
 ```python
