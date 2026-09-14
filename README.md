@@ -120,16 +120,14 @@ does not implement MANO fitting.
   initialization supplies the reference orientation.
 - Output uses a Y-up coordinate system and axis-angle local rotations.
 
-## Tests
+## Validation
 
 ```bash
-python -m pytest
 python -m ruff check .
 python -m build
 ```
 
-The unit tests do not require licensed SMPL-X model assets. A real conversion
-smoke test requires a valid HiPHI BVH and SMPL-X NPZ.
+A real conversion smoke test requires a valid HiPHI BVH and SMPL-X NPZ.
 
 ## Release status
 

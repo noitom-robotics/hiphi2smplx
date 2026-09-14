@@ -19,16 +19,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["build", "pytest", "ruff"]
+dev = ["build", "ruff"]
 
 [project.scripts]
 hiphi2smplx = "hiphi2smplx.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
