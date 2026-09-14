@@ -1,4 +1,4 @@
-"""HiPHI BVH input preparation without the legacy fullbody_ik project."""
+"""HiPHI BVH input preparation for SMPL-X body fitting."""
 
 from __future__ import annotations
 

@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hiphi2smplx"
+version = "0.1.0"
+description = "HiPHI BVH to SMPL-X body conversion with Mink IK"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "mink",
+  "mujoco",
+  "qpsolvers",
+  "daqp",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+dev = ["build", "pytest", "ruff"]
+
+[project.scripts]
+hiphi2smplx = "hiphi2smplx.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

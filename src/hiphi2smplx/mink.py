@@ -1,4 +1,4 @@
-"""Mink-based frame-wise full-body position IK for SMPL/SMPL-X."""
+"""Mink-based frame-wise body position IK for SMPL-X."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def build_skeleton_mjcf(rest_joints: np.ndarray, parents: np.ndarray) -> str:
     if parents[0] != -1:
         raise ValueError("the pelvis must be the root joint")
 
-    root = ET.Element("mujoco", model="joint2smplx_mink")
+    root = ET.Element("mujoco", model="hiphi2smplx_mink")
     ET.SubElement(root, "compiler", angle="radian")
     ET.SubElement(root, "option", gravity="0 0 0", timestep="1")
     worldbody = ET.SubElement(root, "worldbody")
