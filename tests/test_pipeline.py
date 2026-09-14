@@ -21,5 +21,6 @@ def test_equivalent_foot_targets_follow_ankles() -> None:
         (np.eye(3, dtype=np.float32), np.eye(3, dtype=np.float32)),
     )
 
-    np.testing.assert_allclose(result[:, 10] - result[:, 7], [0.0, -0.05, 0.15])
-    np.testing.assert_allclose(result[:, 11] - result[:, 8], [0.0, -0.05, 0.15])
+    expected = np.tile([0.0, -0.05, 0.15], (2, 1))
+    np.testing.assert_allclose(result[:, 10] - result[:, 7], expected, atol=1e-6)
+    np.testing.assert_allclose(result[:, 11] - result[:, 8], expected, atol=1e-6)

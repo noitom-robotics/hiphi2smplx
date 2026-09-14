@@ -321,7 +321,15 @@ def main(argv: list[str] | None = None) -> int:
         output_dir = output_root / relative.parent
         output = output_dir / "motion_actor_smplx.npz"
         if not args.overwrite and _is_current(output, mano_fitter is not None):
-            records.append({"source": str(relative), "output": str(output), "status": "skipped"})
+            assets = _copy_assets(bvh_path.parent, output_dir) if args.copy_assets else []
+            records.append(
+                {
+                    "source": str(relative),
+                    "output": str(output),
+                    "status": "skipped",
+                    "copied_assets": assets,
+                }
+            )
             flush_report()
             print(f"[{index}/{len(sources)}] skip {relative}", flush=True)
             continue

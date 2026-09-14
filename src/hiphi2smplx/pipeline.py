@@ -226,8 +226,9 @@ def save_result(
 
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.tmp.npz")
     np.savez_compressed(
-        destination,
+        temporary,
         poses=result.poses,
         smpl_pose_axis_angle=result.poses,
         trans=result.trans,
@@ -260,3 +261,4 @@ def save_result(
         mink_root_posture_cost=np.asarray(config.root_posture_cost, dtype=np.float32),
         mink_qp_solver=np.asarray(config.qp_solver),
     )
+    temporary.replace(destination)
