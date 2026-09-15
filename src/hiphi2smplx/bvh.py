@@ -9,15 +9,6 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 
 
-SMPL22_SOURCE_SEMANTICS = (
-    "hips", "left_upper_leg", "right_upper_leg", "spine",
-    "left_lower_leg", "right_lower_leg", "spine2", "left_foot",
-    "right_foot", "chest", "left_toe", "right_toe", "neck",
-    "left_clavicle", "right_clavicle", "head", "left_upper_arm",
-    "right_upper_arm", "left_lower_arm", "right_lower_arm",
-    "left_hand", "right_hand",
-)
-
 HIPHI_MAP = {
     "hips": "Hips",
     "left_upper_leg": "LeftUpLeg",
@@ -43,13 +34,18 @@ HIPHI_MAP = {
     "right_hand": "RightHand",
 }
 
-SMPLX_JOINT_NAMES = (
+BODY_SEMANTICS = tuple(HIPHI_MAP)
+
+SMPLX_BODY_JOINT_NAMES = (
     "pelvis", "left_hip", "right_hip", "spine1", "left_knee",
     "right_knee", "spine2", "left_ankle", "right_ankle", "spine3",
     "left_foot", "right_foot", "neck", "left_collar", "right_collar",
     "head", "left_shoulder", "right_shoulder", "left_elbow",
-    "right_elbow", "left_wrist", "right_wrist", "jaw",
-    "left_eye_smplhf", "right_eye_smplhf",
+    "right_elbow", "left_wrist", "right_wrist",
+)
+
+SMPLX_JOINT_NAMES = SMPLX_BODY_JOINT_NAMES + (
+    "jaw", "left_eye_smplhf", "right_eye_smplhf",
 ) + tuple(
     f"{side}_{digit}{segment}"
     for side in ("left", "right")
@@ -57,17 +53,7 @@ SMPLX_JOINT_NAMES = (
     for segment in (1, 2, 3)
 )
 
-SMPLX_BODY_MAP = dict(zip(
-    SMPL22_SOURCE_SEMANTICS,
-    (
-        "pelvis", "left_hip", "right_hip", "spine1",
-        "left_knee", "right_knee", "spine2", "left_ankle",
-        "right_ankle", "spine3", "left_foot", "right_foot",
-        "neck", "left_collar", "right_collar", "head",
-        "left_shoulder", "right_shoulder", "left_elbow",
-        "right_elbow", "left_wrist", "right_wrist",
-    ),
-))
+SMPLX_BODY_MAP = dict(zip(BODY_SEMANTICS, SMPLX_BODY_JOINT_NAMES, strict=True))
 
 SOURCE_SKELETON_MAPS = {"hiphi": HIPHI_MAP}
 SKELETON_MAPS = {**SOURCE_SKELETON_MAPS, "smplx": SMPLX_BODY_MAP}
@@ -228,7 +214,7 @@ def map_skeleton(skeleton: Skeleton, map_name: str = "hiphi") -> dict[str, str]:
         raise ValueError(f"unknown skeleton map {map_name!r}; choose one of: {available}") from exc
     names = set(skeleton.joint_names)
     missing = sorted(
-        semantic for semantic in SMPL22_SOURCE_SEMANTICS
+        semantic for semantic in BODY_SEMANTICS
         if expected[semantic] not in names
     )
     if missing:
@@ -323,16 +309,10 @@ def materialize_bvh_inputs(
     source_positions, _ = source.world_transforms()
     source_indices = {name: index for index, name in enumerate(source.skeleton.joint_names)}
     indices = np.asarray(
-        [source_indices[source_mapping[semantic]] for semantic in SMPL22_SOURCE_SEMANTICS],
+        [source_indices[source_mapping[semantic]] for semantic in BODY_SEMANTICS],
         dtype=np.int64,
     )
     targets = source_positions[:, indices].astype(np.float32)
-    # Short BVH torsos need a virtual midpoint for SMPL-X spine2.
-    if source_mapping["spine2"] == source_mapping["chest"]:
-        spine = SMPL22_SOURCE_SEMANTICS.index("spine")
-        spine2 = SMPL22_SOURCE_SEMANTICS.index("spine2")
-        chest = SMPL22_SOURCE_SEMANTICS.index("chest")
-        targets[:, spine2] = 0.5 * (targets[:, spine] + targets[:, chest])
     return (
         targets,
         _rotation_copy(source, source_mapping, target)[:, :22],
