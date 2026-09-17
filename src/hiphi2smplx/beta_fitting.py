@@ -1,8 +1,7 @@
 """First-frame SMPL-X beta fitting for the HiPHI conversion pipeline.
 
-The SMPLify objective and optimizer schedule retain the parameters used by the
-standalone joints2smpl-based implementation. See the project README for
-attribution and licensing notes.
+Parts of the beta-fitting implementation are adapted from joints2smpl:
+https://github.com/wangsen1312/joints2smpl
 """
 
 from __future__ import annotations
@@ -89,7 +88,7 @@ def _prepare_target_joints(
     target_joints: np.ndarray,
     rest_joints: np.ndarray,
 ) -> np.ndarray:
-    """Apply the standalone direction-only equivalent-foot correction.
+    """Apply equivalent-foot correction.
 
     Args:
         target_joints: Raw first-frame AMASS-22 targets.
@@ -156,7 +155,7 @@ def _skeleton_fk(
     root_position: torch.Tensor,
     rest_offsets: torch.Tensor,
 ) -> torch.Tensor:
-    """Evaluate the standalone 22-joint differentiable FK.
+    """Evaluate the 22-joint differentiable FK.
 
     Args:
         pose_axis_angle: Axis-angle pose with shape ``(B, 24, 3)``.
@@ -219,7 +218,7 @@ class _SmplxBodyAdapter(torch.nn.Module):
 
 
 class _SkeletonBodyAdapter(torch.nn.Module):
-    """Apply beta through the joint shape basis and use lightweight FK."""
+    """Apply beta through the joint shape basis and use lightweight FK to reduce time cost."""
 
     def __init__(self, body_model: _SmplxBodyAdapter) -> None:
         """Precompute the affine beta-to-rest-joint map."""

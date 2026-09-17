@@ -13,17 +13,13 @@ aliases.
 
 ## Examples
 
-Example conversions and qualitative results will be added here.
-
-A planned downstream workflow is:
+这里放一些HIPHI、smplx、G1的case？
 
 ```text
 HiPHI BVH -> hiphi2smplx -> SMPL-X body motion -> UMR humanoid retargeting
 ```
 
-See [UMR](https://github.com/hanyang9/UMR) for unified motion retargeting from
-SMPL-X motion to humanoid robots. An end-to-end HiPHI example will be added
-after the input adapter has been validated.
+
 
 ## Installation
 
@@ -54,8 +50,7 @@ Download them separately and follow the terms of their respective licenses.
    `gmm_08.pkl`. The mean parameters are available through the
    [HMR model setup](https://github.com/akanazawa/hmr/blob/master/doc/train.md),
    and the GMM pose prior is part of the registered
-   [SMPLify](https://smplify.is.tue.mpg.de/) resources. The fitting code is
-   adapted from [joints2smpl](https://github.com/wangsen1312/joints2smpl).
+   [SMPLify](https://smplify.is.tue.mpg.de/) resources.
 
 One possible local layout is:
 
