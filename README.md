@@ -1,144 +1,119 @@
 # hiphi2smplx
 
-Convert HiPHI actor BVH files to SMPL-X body parameters with
-[Mink](https://github.com/kevinzakka/mink) differential inverse kinematics.
+`hiphi2smplx` converts [HiPHI](https://noitom-robotics.github.io/hiphi/)
+actor BVH motion into SMPL-X body parameters. It fits the actor's body shape
+and uses [Mink](https://github.com/kevinzakka/mink) differential inverse
+kinematics to retarget each frame to a shape-aware SMPL-X skeleton.
 
-This repository intentionally contains one fitting path:
+The current release supports the fixed HiPHI BVH skeleton and the 22 SMPL-X
+body joints. Face, eye, and finger poses are not fitted. The codebase is
+designed to remain extensible: support for a new BVH skeleton is added as a
+separate named semantic map instead of broadening the HiPHI mapping with joint
+aliases.
 
-- HiPHI BVH parsing and semantic 22-joint mapping
-- beta-shaped SMPL-X rest skeletons
-- T-pose rotation-copy initialization
-- no-scale, frame-wise Mink body IK
-- beta-shaped equivalent toe targets and sole calibration
-- optional copying of HiPHI metadata and object assets
+## Examples
 
-Finger fitting is not included. Body-only results use the standard SMPL-X
-55-joint pose layout, with jaw, eye, and finger rotations set to zero. A typed
-MANO plugin interface is available for separately distributed implementations.
+Example conversions and qualitative results will be added here.
 
-## Model files
+A planned downstream workflow is:
 
-SMPL-X model files are not included and must not be committed to this
-repository. Download them from the official SMPL-X project after accepting its
-license. The converter expects the NPZ model file, typically named
-SMPLX_NEUTRAL.npz.
+```text
+HiPHI BVH -> hiphi2smplx -> SMPL-X body motion -> UMR humanoid retargeting
+```
+
+See [UMR](https://github.com/hanyang9/UMR) for unified motion retargeting from
+SMPL-X motion to humanoid robots. An end-to-end HiPHI example will be added
+after the input adapter has been validated.
 
 ## Installation
 
 Python 3.10 or newer is required.
 
 ```bash
+cd hiphi2smplx
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -e .
 ```
 
-The default QP backend is DAQP. Select another qpsolvers backend with
-`--qp-solver` if it is installed in the same environment.
+The default quadratic-programming backend is DAQP. Another backend supported
+by `qpsolvers` can be selected with `--qp-solver` when installed in the same
+environment.
 
-## Convert a HiPHI tree
+### Download model files
 
-Use one beta vector for all clips:
+Model files and pose-prior data are not distributed with this repository.
+Download them separately and follow the terms of their respective licenses.
+
+1. Download the SMPL-X model from the
+   [official SMPL-X website](https://smpl-x.is.tue.mpg.de/) after registering
+   and accepting its license. This converter expects the NPZ neutral model,
+   normally named `SMPLX_NEUTRAL.npz`.
+2. Beta fitting additionally requires `neutral_smpl_mean_params.h5` and
+   `gmm_08.pkl`. The mean parameters are available through the
+   [HMR model setup](https://github.com/akanazawa/hmr/blob/master/doc/train.md),
+   and the GMM pose prior is part of the registered
+   [SMPLify](https://smplify.is.tue.mpg.de/) resources. The fitting code is
+   adapted from [joints2smpl](https://github.com/wangsen1312/joints2smpl).
+
+One possible local layout is:
+
+```text
+assets/
+  models/
+    SMPLX_NEUTRAL.npz
+  beta_fit/
+    neutral_smpl_mean_params.h5
+    gmm_08.pkl
+```
+
+## Quick Start
+
+Fit the first-frame body shape and convert one HiPHI BVH file:
 
 ```bash
 hiphi2smplx \
-  --input-root /path/to/HiPHI \
-  --output-root /path/to/output \
-  --model-path /path/to/SMPLX_NEUTRAL.npz \
+  --input-bvh /path/to/motion_actor.bvh \
+  --output /path/to/motion_actor_smplx.npz \
+  --model-path assets/models/SMPLX_NEUTRAL.npz \
+  --fit-betas \
+  --beta-fit-data assets/beta_fit \
+  --beta-device cuda:0 \
+  --progress
+```
+
+Beta fitting uses CUDA by default. Use `--beta-device cpu` when no CUDA device
+is available.
+
+To reuse an existing SMPL-X shape instead of fitting it again, pass an NPY or
+NPZ file containing at least 10 finite beta coefficients:
+
+```bash
+hiphi2smplx \
+  --input-bvh /path/to/motion_actor.bvh \
+  --output /path/to/motion_actor_smplx.npz \
+  --model-path assets/models/SMPLX_NEUTRAL.npz \
   --betas /path/to/betas.npy \
   --progress
 ```
 
-Use per-actor betas:
+The output is an AMASS-style NPZ containing `poses` with shape `(frames, 165)`,
+`trans`, `betas`, `gender`, and `mocap_framerate`. The SMPL-X pose layout is
+kept intact, while jaw, eye, and finger rotations remain zero.
 
-```bash
-hiphi2smplx \
-  --input-root /path/to/HiPHI \
-  --output-root /path/to/output \
-  --model-path /path/to/SMPLX_NEUTRAL.npz \
-  --actor-betas /path/to/actor_betas.npz \
-  --hoi-only
-```
+## Adding another BVH skeleton
 
-The actor manifest NPZ must contain `actor_ids` and a two-dimensional
-`betas` array. A JSON list of objects with `actor_id` and `beta` is also
-accepted. In actor mode, each clip directory must contain `metadata.json`
-with its `actor_id`.
+HiPHI uses the `hiphi` map in
+`hiphi2smplx.skeleton.SOURCE_SKELETON_MAPS`. To support another BVH hierarchy,
+add a new semantic-to-joint-name map under a new key. The converter validates every required mapped joint before fitting.
 
-For parallel batch conversion, assign disjoint shards:
+## Citation
 
-```bash
-hiphi2smplx ... --num-shards 8 --shard-index 0
-hiphi2smplx ... --num-shards 8 --shard-index 1
-```
+## References
 
-Each source `motion_actor.bvh` produces `motion_actor_smplx.npz` at the
-matching relative output path. The output includes 55-joint axis-angle poses,
-translation, betas, frame timing, fitted body joints, residuals, and solver
-provenance. `metadata.json`, `object_tracks`, and `object_meshes` are
-copied when present; pass `--no-copy-assets` to disable this.
+Parts of the beta-fitting implementation are adapted from the following
+projects:
 
-## Skeleton maps
-
-HiPHI input uses the strict `hiphi` map, which matches the fixed HiPHI names
-such as `Hips`, `Spine4`, `LeftUpLeg`, and `LeftToeBase`. Source map registry lives
-in `hiphi2smplx.bvh.SOURCE_SKELETON_MAPS`. Select it explicitly with
-`--skeleton-map hiphi`. A future BVH skeleton should add a new named map to the
-registry rather than adding aliases. Missing mapped joints fail immediately.
-
-## Python API
-
-```python
-import numpy as np
-from hiphi2smplx import ConversionConfig, fit_bvh, save_result
-
-betas = np.load("/path/to/betas.npy")
-config = ConversionConfig(iterations=10)
-result = fit_bvh(
-    "/path/to/motion_actor.bvh",
-    "/path/to/SMPLX_NEUTRAL.npz",
-    betas,
-    config=config,
-)
-save_result(
-    "/path/to/motion_actor_smplx.npz",
-    result,
-    source_bvh="/path/to/motion_actor.bvh",
-    config=config,
-)
-```
-
-## Optional MANO integration
-
-`hiphi2smplx.mano.ManoFitter` defines the boundary for an external hand
-fitter. It receives the body solution and returns left/right SMPL-X finger
-rotations with shape `(frames, 15, 3)`. The CLI loads an external class or
-instance using `--mano-fitter package.module:Attribute`.
-
-See `examples/mano_plugin_stub.py` for the contract. The example deliberately
-does not implement MANO fitting.
-
-## Coordinate and fitting assumptions
-
-- BVH positions and offsets are converted from centimetres to metres.
-- The source motion is not scaled to the SMPL-X body.
-- SMPL-X beta is fixed during IK; this repository does not fit body shape.
-- Joint positions do not fully determine axial twist. Rotation-copy
-  initialization supplies the reference orientation.
-- Output uses a Y-up coordinate system and axis-angle local rotations.
-
-## Validation
-
-```bash
-python -m ruff check .
-python -m build
-```
-
-A real conversion smoke test requires a valid HiPHI BVH and SMPL-X NPZ.
-
-## Release status
-
-This is a review tree, not yet a public release. Complete
-`RELEASE_CHECKLIST.md`, especially license and copyright selection, before
-publishing.
+- [joints2smpl](https://github.com/wangsen1312/joints2smpl)
+- [VIBE](https://github.com/mkocabas/VIBE)

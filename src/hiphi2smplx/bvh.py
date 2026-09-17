@@ -1,4 +1,4 @@
-"""HiPHI BVH input preparation for SMPL-X body fitting."""
+"""BVH parsing for HiPHI skeletal motion files."""
 
 from __future__ import annotations
 
@@ -8,123 +8,13 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-
-HIPHI_MAP = {
-    "hips": "Hips",
-    "left_upper_leg": "LeftUpLeg",
-    "right_upper_leg": "RightUpLeg",
-    "spine": "Spine",
-    "left_lower_leg": "LeftLeg",
-    "right_lower_leg": "RightLeg",
-    "spine2": "Spine2",
-    "left_foot": "LeftFoot",
-    "right_foot": "RightFoot",
-    "chest": "Spine4",
-    "left_toe": "LeftToeBase",
-    "right_toe": "RightToeBase",
-    "neck": "Neck",
-    "left_clavicle": "LeftShoulder",
-    "right_clavicle": "RightShoulder",
-    "head": "Head",
-    "left_upper_arm": "LeftArm",
-    "right_upper_arm": "RightArm",
-    "left_lower_arm": "LeftForeArm",
-    "right_lower_arm": "RightForeArm",
-    "left_hand": "LeftHand",
-    "right_hand": "RightHand",
-}
-
-BODY_SEMANTICS = tuple(HIPHI_MAP)
-
-SMPLX_BODY_JOINT_NAMES = (
-    "pelvis", "left_hip", "right_hip", "spine1", "left_knee",
-    "right_knee", "spine2", "left_ankle", "right_ankle", "spine3",
-    "left_foot", "right_foot", "neck", "left_collar", "right_collar",
-    "head", "left_shoulder", "right_shoulder", "left_elbow",
-    "right_elbow", "left_wrist", "right_wrist",
-)
-
-SMPLX_JOINT_NAMES = SMPLX_BODY_JOINT_NAMES + (
-    "jaw", "left_eye_smplhf", "right_eye_smplhf",
-) + tuple(
-    f"{side}_{digit}{segment}"
-    for side in ("left", "right")
-    for digit in ("index", "middle", "pinky", "ring", "thumb")
-    for segment in (1, 2, 3)
-)
-
-SMPLX_BODY_MAP = dict(zip(BODY_SEMANTICS, SMPLX_BODY_JOINT_NAMES, strict=True))
-
-SOURCE_SKELETON_MAPS = {"hiphi": HIPHI_MAP}
-SKELETON_MAPS = {**SOURCE_SKELETON_MAPS, "smplx": SMPLX_BODY_MAP}
-
-
-@dataclass(frozen=True)
-class Skeleton:
-    joint_names: tuple[str, ...]
-    parents: np.ndarray
-    rest_offsets: np.ndarray
-
-    def __post_init__(self) -> None:
-        parents = np.asarray(self.parents, dtype=np.int64)
-        offsets = np.asarray(self.rest_offsets, dtype=np.float32)
-        count = len(self.joint_names)
-        if parents.shape != (count,) or offsets.shape != (count, 3):
-            raise ValueError("invalid skeleton dimensions")
-        if np.flatnonzero(parents < 0).tolist() != [0]:
-            raise ValueError("skeleton must have one root at index zero")
-        object.__setattr__(self, "parents", parents)
-        object.__setattr__(self, "rest_offsets", offsets)
-
-    @property
-    def num_joints(self) -> int:
-        return len(self.joint_names)
-
-
-@dataclass(frozen=True)
-class MotionClip:
-    skeleton: Skeleton
-    local_rotations: np.ndarray
-    root_translations: np.ndarray
-    frame_time: float
-    local_translations: np.ndarray | None = None
-
-    @property
-    def num_frames(self) -> int:
-        return int(self.local_rotations.shape[0])
-
-    def sliced(self, count: int) -> "MotionClip":
-        return MotionClip(
-            self.skeleton,
-            self.local_rotations[:count],
-            self.root_translations[:count],
-            self.frame_time,
-            None if self.local_translations is None else self.local_translations[:count],
-        )
-
-    def world_transforms(self) -> tuple[np.ndarray, np.ndarray]:
-        frames, joints = self.local_rotations.shape[:2]
-        local = Rotation.from_rotvec(self.local_rotations.reshape(-1, 3)).as_matrix()
-        local = local.reshape(frames, joints, 3, 3).astype(np.float32)
-        translations = self.local_translations
-        if translations is None:
-            translations = np.broadcast_to(self.skeleton.rest_offsets, (frames, joints, 3))
-        positions = np.empty((frames, joints, 3), dtype=np.float32)
-        global_rotations = np.empty_like(local)
-        for joint, parent in enumerate(self.skeleton.parents):
-            if parent < 0:
-                global_rotations[:, joint] = local[:, joint]
-                positions[:, joint] = self.root_translations + self.skeleton.rest_offsets[joint]
-            else:
-                global_rotations[:, joint] = global_rotations[:, parent] @ local[:, joint]
-                positions[:, joint] = positions[:, parent] + np.einsum(
-                    "fij,fj->fi", global_rotations[:, parent], translations[:, joint]
-                )
-        return positions, global_rotations
+from .skeleton import MotionClip, Skeleton
 
 
 @dataclass
 class _BvhJoint:
+    """Mutable joint data collected while parsing a BVH hierarchy."""
+
     name: str
     parent: int
     offset: np.ndarray = field(default_factory=lambda: np.zeros(3, dtype=np.float32))
@@ -133,199 +23,125 @@ class _BvhJoint:
 
 
 def load_bvh(path: str | Path, unit_scale: float = 0.01) -> MotionClip:
+    """Load one BVH file as a local-space motion clip.
+
+    Args:
+        path: Path to the source BVH file.
+        unit_scale: Scale applied to offsets and position channels. The default
+            converts HiPHI centimetres to metres.
+
+    Returns:
+        Parsed skeleton, local joint transforms, root motion, and frame timing.
+
+    Raises:
+        FileNotFoundError: If the source file does not exist.
+        ValueError: If the hierarchy or motion section is incomplete.
+    """
     source = Path(path)
     lines = source.read_text(encoding="utf-8", errors="ignore").splitlines()
     joints: list[_BvhJoint] = []
     stack: list[int | str] = []
     channel_cursor = 0
     cursor = 0
+
     while cursor < len(lines):
         line = lines[cursor].strip()
         if line == "MOTION":
             cursor += 1
             break
         if line.startswith(("ROOT ", "JOINT ")):
-            parent = next((item for item in reversed(stack) if isinstance(item, int)), -1)
+            parent = next(
+                (item for item in reversed(stack) if isinstance(item, int)),
+                -1,
+            )
             joints.append(_BvhJoint(line.split(maxsplit=1)[1].strip(), int(parent)))
             stack.append(len(joints) - 1)
         elif line.startswith("End Site"):
             stack.append("END")
         elif line.startswith("OFFSET ") and stack and isinstance(stack[-1], int):
-            joints[stack[-1]].offset = np.asarray(line.split()[1:4], dtype=np.float32)
+            joints[stack[-1]].offset = np.asarray(
+                line.split()[1:4],
+                dtype=np.float32,
+            )
         elif line.startswith("CHANNELS ") and stack and isinstance(stack[-1], int):
             parts = line.split()
             count = int(parts[1])
-            joints[stack[-1]].channels = parts[2:2 + count]
+            joints[stack[-1]].channels = parts[2 : 2 + count]
             joints[stack[-1]].channel_indices = list(range(channel_cursor, channel_cursor + count))
             channel_cursor += count
         elif line == "}" and stack:
             stack.pop()
         cursor += 1
+
     if not joints or cursor + 1 >= len(lines):
         raise ValueError(f"{source}: incomplete BVH")
+
     frames = int(lines[cursor].split(":", 1)[1])
     frame_time = float(lines[cursor + 1].split(":", 1)[1])
-    rows = [[float(value) for value in line.split()] for line in lines[cursor + 2:cursor + 2 + frames] if line.strip()]
+    motion_lines = lines[cursor + 2 : cursor + 2 + frames]
+    rows = [[float(value) for value in line.split()] for line in motion_lines if line.strip()]
     values = np.asarray(rows, dtype=np.float32)
     if values.shape != (frames, channel_cursor):
-        raise ValueError(f"{source}: motion shape {values.shape}, expected {(frames, channel_cursor)}")
+        raise ValueError(
+            f"{source}: motion shape {values.shape}, expected {(frames, channel_cursor)}"
+        )
 
     local_rotations = np.zeros((frames, len(joints), 3), dtype=np.float32)
     local_translations = np.broadcast_to(
-        np.stack([joint.offset for joint in joints])[None], (frames, len(joints), 3)
+        np.stack([joint.offset for joint in joints])[None],
+        (frames, len(joints), 3),
     ).copy()
     root_translations = np.zeros((frames, 3), dtype=np.float32)
+
     for joint_index, joint in enumerate(joints):
         joint_values = values[:, joint.channel_indices]
-        rotation_indices = [i for i, channel in enumerate(joint.channels) if channel.lower().endswith("rotation")]
-        order = "".join(joint.channels[i][0].upper() for i in rotation_indices)
+        rotation_indices = [
+            index
+            for index, channel in enumerate(joint.channels)
+            if channel.lower().endswith("rotation")
+        ]
+        order = "".join(joint.channels[index][0].upper() for index in rotation_indices)
         if order:
-            local_rotations[:, joint_index] = Rotation.from_euler(
-                order, joint_values[:, rotation_indices], degrees=True
-            ).as_rotvec().astype(np.float32)
-        positions = {channel[0].lower(): i for i, channel in enumerate(joint.channels) if channel.lower().endswith("position")}
+            local_rotations[:, joint_index] = (
+                Rotation.from_euler(
+                    order,
+                    joint_values[:, rotation_indices],
+                    degrees=True,
+                )
+                .as_rotvec()
+                .astype(np.float32)
+            )
+
+        # HiPHI joints may provide position channels alongside rotations.
+        # We prefer the position channels here
+        position_indices = {
+            channel[0].lower(): index
+            for index, channel in enumerate(joint.channels)
+            if channel.lower().endswith("position")
+        }
         destination = root_translations if joint_index == 0 else local_translations[:, joint_index]
         if joint_index == 0:
             destination[:] = joint.offset
         for axis, component in (("x", 0), ("y", 1), ("z", 2)):
-            if axis in positions:
-                destination[:, component] = joint_values[:, positions[axis]]
+            if axis in position_indices:
+                destination[:, component] = joint_values[:, position_indices[axis]]
 
-    offsets = np.stack([joint.offset for joint in joints]).astype(np.float32) * unit_scale
+    offsets = np.stack([joint.offset for joint in joints]).astype(np.float32)
+    offsets *= unit_scale
     offsets[0] = 0.0
     local_translations *= unit_scale
     local_translations[:, 0] = 0.0
     root_translations *= unit_scale
+
+    skeleton = Skeleton(
+        tuple(joint.name for joint in joints),
+        np.asarray([joint.parent for joint in joints], dtype=np.int64),
+        offsets,
+    )
     return MotionClip(
-        Skeleton(tuple(joint.name for joint in joints), np.asarray([joint.parent for joint in joints]), offsets),
-        local_rotations,
-        root_translations,
-        frame_time,
-        local_translations,
+        skeleton=skeleton,
+        local_rotations=local_rotations,
+        root_translations=root_translations,
+        frame_time=frame_time,
+        local_translations=local_translations,
     )
-
-
-def map_skeleton(skeleton: Skeleton, map_name: str = "hiphi") -> dict[str, str]:
-    """Resolve one named skeleton map using exact BVH joint names."""
-    try:
-        expected = SKELETON_MAPS[map_name]
-    except KeyError as exc:
-        available = ", ".join(sorted(SKELETON_MAPS))
-        raise ValueError(f"unknown skeleton map {map_name!r}; choose one of: {available}") from exc
-    names = set(skeleton.joint_names)
-    missing = sorted(
-        semantic for semantic in BODY_SEMANTICS
-        if expected[semantic] not in names
-    )
-    if missing:
-        missing_names = [f"{semantic}={expected[semantic]}" for semantic in missing]
-        raise ValueError(f"skeleton map {map_name!r} misses joints: {missing_names}")
-    if len(set(expected.values())) != len(expected):
-        raise ValueError(f"skeleton map {map_name!r} contains duplicate joint names")
-    return dict(expected)
-
-
-def _load_smplx_skeleton(model_path: str | Path, betas: np.ndarray) -> Skeleton:
-    with np.load(Path(model_path), allow_pickle=True) as model:
-        template = np.asarray(model["v_template"], dtype=np.float32)
-        shapedirs = np.asarray(model["shapedirs"], dtype=np.float32)
-        regressor = model["J_regressor"]
-        if hasattr(regressor, "toarray"):
-            regressor = regressor.toarray()
-        coefficients = np.asarray(betas, dtype=np.float32).reshape(-1)
-        count = min(coefficients.size, shapedirs.shape[-1])
-        vertices = template + np.einsum("vdn,n->vd", shapedirs[..., :count], coefficients[:count])
-        joints = np.asarray(regressor, dtype=np.float32) @ vertices
-        parents = np.asarray(model["kintree_table"], dtype=np.int64)[0].copy()
-    parents[parents > 1_000_000] = -1
-    joint_count = min(len(SMPLX_JOINT_NAMES), len(joints), len(parents))
-    offsets = joints[:joint_count].copy()
-    for joint in range(1, joint_count):
-        offsets[joint] -= joints[int(parents[joint])]
-    return Skeleton(SMPLX_JOINT_NAMES[:joint_count], parents[:joint_count], offsets)
-
-
-def _rotation_copy(source: MotionClip, source_mapping: dict[str, str], target: Skeleton) -> np.ndarray:
-    _, source_global = source.world_transforms()
-    source_indices = {name: index for index, name in enumerate(source.skeleton.joint_names)}
-    target_mapping = map_skeleton(target, "smplx")
-    target_semantics = {joint: semantic for semantic, joint in target_mapping.items()}
-    target_global = np.empty((source.num_frames, target.num_joints, 3, 3), dtype=np.float32)
-    identity = np.eye(3, dtype=np.float32)
-    for joint, parent in enumerate(target.parents):
-        semantic = target_semantics.get(target.joint_names[joint])
-        if semantic is not None and semantic in source_mapping:
-            target_global[:, joint] = source_global[:, source_indices[source_mapping[semantic]]]
-        elif parent >= 0:
-            target_global[:, joint] = target_global[:, parent]
-        else:
-            target_global[:, joint] = identity
-    local = target_global.copy()
-    for joint, parent in enumerate(target.parents):
-        if parent >= 0:
-            local[:, joint] = np.swapaxes(target_global[:, parent], -1, -2) @ target_global[:, joint]
-    return Rotation.from_matrix(local.reshape(-1, 3, 3)).as_rotvec().reshape(
-        source.num_frames, target.num_joints, 3
-    ).astype(np.float32)
-
-
-def foot_sole_pitch_offsets(betas: np.ndarray, model_path: str | Path) -> dict[str, np.ndarray]:
-    with np.load(Path(model_path), allow_pickle=True) as model:
-        template = np.asarray(model["v_template"], dtype=np.float64)
-        shapedirs = np.asarray(model["shapedirs"], dtype=np.float64)
-        weights = np.asarray(model["weights"], dtype=np.float64)
-    coefficients = np.asarray(betas, dtype=np.float64).reshape(-1)
-    count = min(coefficients.size, shapedirs.shape[-1])
-    vertices = template + np.einsum("vcn,n->vc", shapedirs[..., :count], coefficients[:count])
-    output = {}
-    for semantic, joints in (("left_foot", (7, 10)), ("right_foot", (8, 11))):
-        foot = vertices[np.flatnonzero(weights[:, joints].sum(axis=1) > 0.5)]
-        lower_z, upper_z = np.quantile(foot[:, 2], (0.25, 0.65))
-        heel, toe = foot[foot[:, 2] <= lower_z], foot[foot[:, 2] >= upper_z]
-        heel_floor, toe_floor = np.quantile(heel[:, 1], 0.05), np.quantile(toe[:, 1], 0.05)
-        heel_z = np.median(heel[heel[:, 1] <= np.quantile(heel[:, 1], 0.15), 2])
-        toe_z = np.median(toe[toe[:, 1] <= np.quantile(toe[:, 1], 0.15), 2])
-        angle = float(np.arctan2(toe_floor - heel_floor, toe_z - heel_z))
-        cosine, sine = np.cos(angle), np.sin(angle)
-        output[semantic] = np.asarray(
-            ((1.0, 0.0, 0.0), (0.0, cosine, -sine), (0.0, sine, cosine)), dtype=np.float32
-        )
-    return output
-
-
-def materialize_bvh_inputs(
-    bvh_path: str | Path,
-    model_path: str | Path,
-    betas: np.ndarray,
-    max_frames: int | None = None,
-    skeleton_map: str = "hiphi",
-) -> tuple[np.ndarray, np.ndarray, float, float]:
-    """Return no-scale joint targets and rotation-copy initialization for Mink."""
-    source = load_bvh(bvh_path, unit_scale=0.01)
-    if max_frames is not None:
-        source = source.sliced(min(source.num_frames, max_frames))
-    source_mapping = map_skeleton(source.skeleton, skeleton_map)
-    target = _load_smplx_skeleton(model_path, betas)
-    source_positions, _ = source.world_transforms()
-    source_indices = {name: index for index, name in enumerate(source.skeleton.joint_names)}
-    indices = np.asarray(
-        [source_indices[source_mapping[semantic]] for semantic in BODY_SEMANTICS],
-        dtype=np.int64,
-    )
-    targets = source_positions[:, indices].astype(np.float32)
-    return (
-        targets,
-        _rotation_copy(source, source_mapping, target)[:, :22],
-        float(source.frame_time),
-        1.0,
-    )
-
-
-def load_smplx_rest_joints(model_path: str | Path, betas: np.ndarray) -> np.ndarray:
-    skeleton = _load_smplx_skeleton(model_path, betas)
-    positions = np.empty_like(skeleton.rest_offsets)
-    for joint, parent in enumerate(skeleton.parents):
-        positions[joint] = skeleton.rest_offsets[joint]
-        if parent >= 0:
-            positions[joint] += positions[parent]
-    return positions
