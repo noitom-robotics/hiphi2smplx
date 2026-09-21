@@ -105,9 +105,7 @@ add a new semantic-to-joint-name map under a new key. The converter validates ev
 
 ## What's more? Higher-precision data
 
-SMPL-X body shape is represented by beta coefficients inferred from the BVH skeleton, but the skeleton does not fully constrain the actor's actual body thickness and local shape. This can make the SMPL-X surface mismatch the performer and cause unrealistic penetration during contact with chairs, boxes, or other scene objects. We therefore compare SMPL-X with scan-derived high-resolution SOMA meshes using the same motion and object trajectories; the examples below include side-by-side visualizations and object-body penetration metrics, where lower values indicate less penetration.
-
-In the table, every value is reported as **SMPL-X / SOMA**, and each pair is **mean / maximum** over the evaluated frames. The **penetrating surface ratio** is the fraction of sampled object-surface points that lie inside the human mesh. **Penetration depth** is the signed distance of those points inside the human surface, reported in millimeters. The **volume proxy** integrates penetration depth over the intersecting object surface and is reported in cm3; it is used as a consistent approximation of intersection volume rather than an exact Boolean volume. Lower values indicate less object-body intersection.
+BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch the actor and penetrate scene objects. We compare it with scan-derived SOMA under identical motion and object trajectories. Values are reported as **SMPL-X / SOMA** and **mean / maximum**; the metrics are surface ratio, penetration depth (mm), and a depth-integrated volume proxy (cm3), where lower is better.
 
 | ![](assets/chair.webm) | ![](assets/box.webm) | ![](assets/desk.webm) |
 | --- | --- | --- |
