@@ -107,9 +107,9 @@ add a new semantic-to-joint-name map under a new key. The converter validates ev
 
 BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch the actor and penetrate scene objects. We compare it with scan-derived SOMA under identical motion and object trajectories. Values are reported as **SMPL-X / SOMA** and **mean / maximum**; the metrics are surface ratio, penetration depth (mm), and a depth-integrated volume proxy (cm3), where lower is better.
 
-| ![](assets/chair.webm) | ![](assets/box.webm) | ![](assets/desk.webm) |
-| --- | --- | --- |
-| **Penetrating surface ratio (%)**<br>SMPL-X: `17.33 / 34.38`; SOMA: `7.99 / 17.19`<br><br>**Depth (mm)**<br>SMPL-X: `26.36 / 89.54`; SOMA: `19.13 / 66.62`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `4384 / 8055`; SOMA: `1467 / 3054` | **Penetrating surface ratio (%)**<br>SMPL-X: `4.38 / 9.38`; SOMA: `2.49 / 6.25`<br><br>**Depth (mm)**<br>SMPL-X: `14.94 / 67.06`; SOMA: `10.15 / 39.51`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1090 / 2714`; SOMA: `422 / 1101` | **Penetrating surface ratio (%)**<br>SMPL-X: `1.16 / 3.13`; SOMA: `1.13 / 4.17`<br><br>**Depth (mm)**<br>SMPL-X: `51.37 / 69.71`; SOMA: `8.49 / 26.49`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1193 / 2573`; SOMA: `191 / 986` |
+| ![](assets/chair.webm) | ![](assets/box.webm) |
+| --- | --- |
+| **Penetrating surface ratio (%)**<br>SMPL-X: `17.33 / 34.38`; SOMA: `7.99 / 17.19`<br><br>**Depth (mm)**<br>SMPL-X: `26.36 / 89.54`; SOMA: `19.13 / 66.62`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `4384 / 8055`; SOMA: `1467 / 3054` | **Penetrating surface ratio (%)**<br>SMPL-X: `4.38 / 9.38`; SOMA: `2.49 / 6.25`<br><br>**Depth (mm)**<br>SMPL-X: `14.94 / 67.06`; SOMA: `10.15 / 39.51`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1090 / 2714`; SOMA: `422 / 1101` |
 
 Values are reported as mean / maximum over the sampled action interval.
 
@@ -119,5 +119,5 @@ Values are reported as mean / maximum over the sampled action interval.
 
 We indicate externally borrowed code and model components here:
 
-- Beta fitting is adapted from [joints2smpl](https://github.com/wangsen1312/joints2smpl) and [VIBE](https://github.com/mkocabas/VIBE).
+- Beta fitting is adapted from [joint2smpl](https://github.com/wangsen1312/joints2smpl) and [VIBE](https://github.com/mkocabas/VIBE).
 - The SMPL-X body model and layer are provided by [SMPL-X](https://github.com/vchoutas/smplx).
