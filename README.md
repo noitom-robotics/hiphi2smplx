@@ -103,6 +103,18 @@ HiPHI uses the `hiphi` map in
 `hiphi2smplx.skeleton.SOURCE_SKELETON_MAPS`. To support another BVH hierarchy,
 add a new semantic-to-joint-name map under a new key. The converter validates every required mapped joint before fitting.
 
+## What's more? Higher-precision data
+
+SMPL-X body shape is represented by beta coefficients inferred from the BVH skeleton, but the skeleton does not fully constrain the actor's actual body thickness and local shape. This can make the SMPL-X surface mismatch the performer and cause unrealistic penetration during contact with chairs, boxes, or other scene objects. We therefore compare SMPL-X with scan-derived high-resolution SOMA meshes using the same motion and object trajectories; the examples below include side-by-side visualizations and object-body penetration metrics, where lower values indicate less penetration.
+
+In the table, every value is reported as **SMPL-X / SOMA**, and each pair is **mean / maximum** over the evaluated frames. The **penetrating surface ratio** is the fraction of sampled object-surface points that lie inside the human mesh. **Penetration depth** is the signed distance of those points inside the human surface, reported in millimeters. The **volume proxy** integrates penetration depth over the intersecting object surface and is reported in cm3; it is used as a consistent approximation of intersection volume rather than an exact Boolean volume. Lower values indicate less object-body intersection.
+
+| ![](assets/chair.webm) | ![](assets/box.webm) | ![](assets/desk.webm) |
+| --- | --- | --- |
+| **Penetrating surface ratio (%)**<br>SMPL-X: `17.33 / 34.38`; SOMA: `7.99 / 17.19`<br><br>**Depth (mm)**<br>SMPL-X: `26.36 / 89.54`; SOMA: `19.13 / 66.62`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `4384 / 8055`; SOMA: `1467 / 3054` | **Penetrating surface ratio (%)**<br>SMPL-X: `4.38 / 9.38`; SOMA: `2.49 / 6.25`<br><br>**Depth (mm)**<br>SMPL-X: `14.94 / 67.06`; SOMA: `10.15 / 39.51`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1090 / 2714`; SOMA: `422 / 1101` | **Penetrating surface ratio (%)**<br>SMPL-X: `1.16 / 3.13`; SOMA: `1.13 / 4.17`<br><br>**Depth (mm)**<br>SMPL-X: `51.37 / 69.71`; SOMA: `8.49 / 26.49`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1193 / 2573`; SOMA: `191 / 986` |
+
+Values are reported as mean / maximum over the sampled action interval.
+
 ## Citation
 
 ## References
