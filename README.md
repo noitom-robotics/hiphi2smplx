@@ -113,14 +113,6 @@ BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch
 
 Values are reported as mean / maximum over the sampled action interval.
 
-### Body-shape overlap
-
-These overlays use the same synchronized reference pose and coordinate frame to isolate body-surface differences: orange is SMPL-X and blue is SOMA.
-
-|  |  |
-| --- | --- |
-| ![](assets/chair_shape_overlap.png) | ![](assets/box_shape_overlap.png) |
-
 ## Citation
 
 ## References
