@@ -117,8 +117,7 @@ Values are reported as mean / maximum over the sampled action interval.
 
 ## References
 
-Parts of the beta-fitting implementation are adapted from the following
-projects:
+We indicate externally borrowed code and model components here:
 
-- [joints2smpl](https://github.com/wangsen1312/joints2smpl)
-- [VIBE](https://github.com/mkocabas/VIBE)
+- Beta fitting is adapted from [joints2smpl](https://github.com/wangsen1312/joints2smpl) and [VIBE](https://github.com/mkocabas/VIBE).
+- The SMPL-X body model and layer are provided by [SMPL-X](https://github.com/vchoutas/smplx).
