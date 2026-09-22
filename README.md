@@ -103,7 +103,7 @@ HiPHI uses the `hiphi` map in
 `hiphi2smplx.skeleton.SOURCE_SKELETON_MAPS`. To support another BVH hierarchy,
 add a new semantic-to-joint-name map under a new key. The converter validates every required mapped joint before fitting.
 
-## What's more? Higher-precision data
+## Beyond SMPL-X: Higher-Precision Body Meshes
 
 BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch the actor and penetrate scene objects. **We produce our own scan-derived, high-resolution SOMA body meshes to better capture the actors' shapes, and compare them with SMPL-X using the same motions and object trajectories.** Values are reported as **SMPL-X / SOMA** and **mean / maximum**; the metrics are surface ratio, penetration depth (mm), and a depth-integrated volume proxy (cm3), where lower is better.
 
