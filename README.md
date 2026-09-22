@@ -106,6 +106,31 @@ Values are reported as mean / maximum over the sampled action interval.
 
 ## Citation
 
+### [HiPHI](https://arxiv.org/abs/2608.16222)
+
+```bibtex
+@article{ji2026hiphi,
+  title={HiPHI: A Large-Scale Benchmark for High-Precision Human Motion and Object-Interaction},
+  author={Ji, Jiahao and Ma, Ji and Zhang, Runhan and Yu, Runyi and Wang, Wenjia and Chi, Weiheng and Peng, Qianqian and Yan, Weichao and Gu, Yongfei and Tian, Ye and Wu, Ting and Li, Longwei and Yuan, Chun and Dai, Ruoli and Han, Lei},
+  journal={arXiv preprint arXiv:2608.16222},
+  year={2026}
+}
+```
+
+### [UMR](https://arxiv.org/abs/2609.02134)
+
+```bibtex
+@misc{cao2026unifiedmotionretargetinghumanoids,
+  title={Unified Motion Retargeting for Humanoids with Learned Point Cloud Correspondence},
+  author={Hanyang Cao and Yuetong Fang and Taesoo Kwon and Runyi Yu and Ji Ma and Jing Tan and Yangchen Zhou and Baoze Du and Yi Gu and Yukang Gao and Ruoli Dai and Lei Han and Renjing Xu},
+  year={2026},
+  eprint={2609.02134},
+  archivePrefix={arXiv},
+  primaryClass={cs.RO},
+  url={https://arxiv.org/abs/2609.02134},
+}
+```
+
 ## References
 
 We indicate externally borrowed code and model components here:
