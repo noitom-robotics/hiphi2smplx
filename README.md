@@ -1,5 +1,7 @@
 # hiphi2smplx
 
+![HiPHI BVH skeleton, SMPL-X body mesh, and UMR-retargeted G1 robot](assets/hiphi_smplx_umr_g1.png)
+
 `hiphi2smplx` converts [HiPHI](https://noitom-robotics.github.io/hiphi/)
 actor BVH motion into SMPL-X body parameters. It fits the actor's body shape
 and uses [Mink](https://github.com/kevinzakka/mink) differential inverse
@@ -10,16 +12,6 @@ body joints. Face, eye, and finger poses are not fitted. The codebase is
 designed to remain extensible: support for a new BVH skeleton is added as a
 separate named semantic map instead of broadening the HiPHI mapping with joint
 aliases.
-
-## Examples
-
-这里放一些HIPHI、smplx、G1的case？
-
-```text
-HiPHI BVH -> hiphi2smplx -> SMPL-X body motion -> UMR humanoid retargeting
-```
-
-
 
 ## Installation
 
