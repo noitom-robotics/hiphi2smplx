@@ -2,9 +2,9 @@
 
 ![HiPHI BVH skeleton, SMPL-X body mesh, and UMR-retargeted G1 robot](assets/hiphi_smplx_umr_g1.png)
 
-You can use `hiphi2smplx` to convert [HiPHI](https://noitom-robotics.github.io/hiphi/)
-actor BVH motion into SMPL-X body parameters for downstream tasks such as
-UMR-based humanoid retargeting.
+`hiphi2smplx` converts [HiPHI](https://noitom-robotics.github.io/hiphi/)
+actor BVH motion into SMPL-X body parameters. The resulting SMPL-X motion can
+be used in downstream tasks such as UMR-based humanoid retargeting.
 
 The current release supports the fixed HiPHI BVH skeleton and the 22 SMPL-X
 body joints. Face, eye, and finger poses are not fitted. The codebase is
