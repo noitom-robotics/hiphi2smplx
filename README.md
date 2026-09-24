@@ -96,11 +96,11 @@ add a new semantic-to-joint-name map under a new key. The converter validates ev
 
 ## Beyond SMPL-X: Higher-Precision Body Meshes
 
-BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch the actor and penetrate scene objects. **We produce our own scan-derived, high-resolution SOMA body meshes to better capture the actors' shapes, and compare them with SMPL-X using the same motions and object trajectories.** Values are reported as **SMPL-X / SOMA** and **mean / maximum**; the metrics are surface ratio, penetration depth (mm), and a depth-integrated volume proxy (cm3), where lower is better.
+BVH joints do not fully determine body shape, so beta-fitted SMPL-X can mismatch the actor and penetrate scene objects. **We produce our own scan-derived, high-resolution SOMA body meshes to better capture the actors' shapes, and compare them with SMPL-X using the same motions and object trajectories.** Values are reported as **SMPL-X / SOMA** and **mean / maximum**; the metrics are surface ratio, penetration depth (mm), and a depth-integrated volume proxy (cm³), where lower is better.
 
 | ![](assets/chair.webm) | ![](assets/box.webm) |
 | --- | --- |
-| **Penetrating surface ratio (%)**<br>SMPL-X: `17.33 / 34.38`; SOMA: `7.99 / 17.19`<br><br>**Depth (mm)**<br>SMPL-X: `26.36 / 89.54`; SOMA: `19.13 / 66.62`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `4384 / 8055`; SOMA: `1467 / 3054` | **Penetrating surface ratio (%)**<br>SMPL-X: `4.38 / 9.38`; SOMA: `2.49 / 6.25`<br><br>**Depth (mm)**<br>SMPL-X: `14.94 / 67.06`; SOMA: `10.15 / 39.51`<br><br>**Volume proxy (cm3)**<br>SMPL-X: `1090 / 2714`; SOMA: `422 / 1101` |
+| **Penetrating surface ratio (%)**<br>SMPL-X: `17.33 / 34.38`; SOMA: `7.99 / 17.19`<br><br>**Depth (mm)**<br>SMPL-X: `26.36 / 89.54`; SOMA: `19.13 / 66.62`<br><br>**Volume proxy (cm³)**<br>SMPL-X: `4384 / 8055`; SOMA: `1467 / 3054` | **Penetrating surface ratio (%)**<br>SMPL-X: `4.38 / 9.38`; SOMA: `2.49 / 6.25`<br><br>**Depth (mm)**<br>SMPL-X: `14.94 / 67.06`; SOMA: `10.15 / 39.51`<br><br>**Volume proxy (cm³)**<br>SMPL-X: `1090 / 2714`; SOMA: `422 / 1101` |
 
 Values are reported as mean / maximum over the sampled action interval.
 
